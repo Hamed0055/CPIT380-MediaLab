@@ -1,0 +1,50 @@
+# Python, test, and virtual environment files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Local editor settings and temporary files
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+*.swp
+/tmp/
+/uploads/
+/output/
+/outputs/
+histogram_demo.png
+
+# Credentials and local settings
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.pem
+*.key
+
+# User media belongs in uploads; only curated samples are tracked.
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.webp
+*.gif
+*.tif
+*.tiff
+*.wav
+*.mp3
+*.mp4
+*.mov
+*.avi
+!samples/*.png
