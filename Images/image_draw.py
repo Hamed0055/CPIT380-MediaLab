@@ -1,9 +1,6 @@
 """MediaLab: a small Pillow drawing tool with a Tkinter window."""
 
-import tkinter as tk
-from tkinter import colorchooser, filedialog, messagebox, ttk
-
-from PIL import Image, ImageDraw, ImageOps, ImageTk
+from PIL import Image, ImageDraw, ImageOps
 
 
 WIDTH = 800
@@ -28,7 +25,16 @@ def draw_shape(image, tool, start, end, color, thickness):
 
 # 02. Pencil Stroke: Connects two mouse positions with a colored line.
 def pencil_stroke(image, start, end, color, thickness):
-    ImageDraw.Draw(image).line((start, end), fill=color, width=thickness)
+    draw = ImageDraw.Draw(image)
+    if start == end and thickness == 1:
+        draw.point(start, fill=color)
+    elif start == end:
+        x, y = start
+        offset = (thickness - 1) // 2
+        left, top = x - offset, y - offset
+        draw.ellipse((left, top, left + thickness - 1, top + thickness - 1), fill=color)
+    else:
+        draw.line((start, end), fill=color, width=thickness)
 
 
 # 03. Eyedropper: Reads the RGB color of one image pixel.
@@ -39,6 +45,10 @@ def pick_color(image, x, y):
 class ImageDrawApp:
     # 04. Initialize: Creates a blank drawing area and a simple toolbar.
     def __init__(self, root):
+        import tkinter as tk
+        from tkinter import ttk
+        from PIL import ImageTk
+
         root.title("MediaLab - Image Drawing")
         self.image = Image.new("RGB", (WIDTH, HEIGHT), "white")
         self.color = "#000000"
@@ -78,6 +88,8 @@ class ImageDrawApp:
 
     # 05. Refresh: Displays the latest Pillow image in the drawing window.
     def refresh(self):
+        from PIL import ImageTk
+
         self.canvas.delete("preview")
         self.photo = ImageTk.PhotoImage(self.image)
         self.canvas.itemconfigure(self.image_item, image=self.photo)
@@ -94,11 +106,7 @@ class ImageDrawApp:
             r, g, b = pick_color(self.image, *self.start)
             self.set_color(f"#{r:02x}{g:02x}{b:02x}")
         elif self.tool.get() == "Pencil":
-            x, y = self.start
-            radius = max(1, self.size.get()) / 2
-            ImageDraw.Draw(self.image).ellipse(
-                (x - radius, y - radius, x + radius, y + radius), fill=self.color
-            )
+            pencil_stroke(self.image, self.start, self.start, self.color, self.size.get())
             self.refresh()
 
     # 08. Mouse Drag: Draws with the pencil or previews a shape.
@@ -128,9 +136,11 @@ class ImageDrawApp:
     def on_release(self, event):
         if self.start is None:
             return
-        if self.tool.get() in ("Line", "Rectangle", "Ellipse"):
-            draw_shape(self.image, self.tool.get(), self.start,
-                       self.position(event), self.color, self.size.get())
+        tool = self.tool.get()
+        if tool == "Pencil":
+            pencil_stroke(self.image, self.last, self.position(event), self.color, self.size.get())
+        elif tool in ("Line", "Rectangle", "Ellipse"):
+            draw_shape(self.image, tool, self.start, self.position(event), self.color, self.size.get())
         self.start = self.last = None
         self.refresh()
 
@@ -141,6 +151,8 @@ class ImageDrawApp:
 
     # 11. Choose Color: Opens the system color picker.
     def choose_color(self):
+        from tkinter import colorchooser
+
         _, selected = colorchooser.askcolor(color=self.color)
         if selected:
             self.set_color(selected)
@@ -152,6 +164,8 @@ class ImageDrawApp:
 
     # 13. Open Image: Loads a picture and fits it into the drawing area.
     def open_image(self):
+        from tkinter import filedialog, messagebox
+
         path = filedialog.askopenfilename(
             filetypes=[("Images", "*.png *.jpg *.jpeg *.bmp *.webp")]
         )
@@ -165,11 +179,13 @@ class ImageDrawApp:
             offset = ((WIDTH - picture.width) // 2, (HEIGHT - picture.height) // 2)
             self.image.paste(picture, offset, picture)
             self.refresh()
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, Image.DecompressionBombError) as exc:
             messagebox.showerror("Cannot open image", str(exc))
 
     # 14. Save Image: Exports the edited canvas as PNG or JPEG.
     def save_image(self):
+        from tkinter import filedialog, messagebox
+
         path = filedialog.asksaveasfilename(
             defaultextension=".png",
             filetypes=[("PNG image", "*.png"), ("JPEG image", "*.jpg")],
@@ -183,6 +199,8 @@ class ImageDrawApp:
 
 # 15. Main: Starts the standalone drawing window.
 def main():
+    import tkinter as tk
+
     root = tk.Tk()
     ImageDrawApp(root)
     root.mainloop()

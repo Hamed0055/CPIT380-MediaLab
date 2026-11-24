@@ -22,6 +22,9 @@ def _rgb(image: Image.Image) -> Image.Image:
     if not isinstance(image, Image.Image):
         raise TypeError("image must be a Pillow Image.Image")
 
+    if image.mode == "RGB" and "transparency" not in image.info:
+        return image.copy()
+
     rgba = image.convert("RGBA")
     background = Image.new("RGB", rgba.size, "white")
     background.paste(rgba, mask=rgba.getchannel("A"))
@@ -177,11 +180,19 @@ def adjust_brightness(image: Image.Image, factor: float = 1.0) -> Image.Image:
     return ImageEnhance.Brightness(_rgb(image)).enhance(factor)
 
 
-# 10. Contrast: Adjusts the separation between dark and light tones.
+# 10. Contrast: Spreads or compresses RGB values around the image's mean intensity.
 def adjust_contrast(image: Image.Image, factor: float = 1.0) -> Image.Image:
     """Adjust separation of light/dark pixels. 0=flat, 1=no change."""
-    factor = _check_number("factor", factor, 0.0, 3.0)
-    return ImageEnhance.Contrast(_rgb(image)).enhance(factor)
+    factor = _check_number("Contrast factor", factor, 0, 3)
+    image = _rgb(image)
+    total_pixels = image.width * image.height
+    if factor == 1 or total_pixels == 0:
+        return image
+    counts = image.convert("L").histogram()
+    mean = sum(i * count for i, count in enumerate(counts)) / total_pixels
+    return image.point(
+        lambda value: max(0, min(255, round(factor * (value - mean) + mean)))
+    )
 
 
 # 11. Gaussian Blur: Softens an image by smoothing neighbouring pixels.
