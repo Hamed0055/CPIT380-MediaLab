@@ -1,6 +1,6 @@
 # MediaLab — Multimedia Processing Toolkit
 
-MediaLab is a local Streamlit app for the **CPIT-380 Multimedia Technologies group project (Group 7)**. V1.2 provides a full image editor and preview layouts for Audio, Video and Text.
+MediaLab is a local Streamlit app for the **CPIT-380 Multimedia Technologies group project (Group 7)**. It includes four workbenches for images, audio, video and text.
 
 ## Run locally
 
@@ -14,7 +14,9 @@ Use Python 3.12 or newer. From the project directory:
 
 Open [MediaLab on localhost](http://127.0.0.1:8501). In an activated environment, you can also run `python -m streamlit run main.py`. In Code - OSS, select the Python executable inside `.venv`.
 
-The app listens on loopback and turns off Streamlit usage statistics. Its working images stay in the local session. Save a PNG before closing or reloading the editor to keep your work.
+For Video, install FFmpeg with the `libx264` and AAC encoders. Check that `ffmpeg -version` and `ffprobe -version` work in your terminal. Image, Audio and Text use the Python dependencies above.
+
+The app listens on loopback and turns off Streamlit usage statistics. Each section keeps its own work during the browser session. Download the applied result before closing or reloading the page.
 
 ## Edit an image
 
@@ -35,7 +37,24 @@ Use **How It Works** for CPIT-380 formulas and concepts. The controls provide en
 | Drawing | Pencil, line, outlined or filled rectangle and ellipse, colour picker and eyedropper. Undo individual strokes or clear the draft before applying it. |
 | Histogram | Compare the original and current result on shared axes. Adjust brightness and contrast and choose 8, 16, 32, 64, 128 or 256 bins. |
 
-## Parameter mappings
+## Edit audio, video or text
+
+| Workbench | Open | Edit and compare | Export |
+| --- | --- | --- | --- |
+| Audio | PCM WAV or `samples/sample-tone.wav` | Adjust volume, reverse, add echo, trim, join, or blend. Play the original and the preview before applying. | WAV at the original rate, bit depth and channel count |
+| Video | MP4 or `samples/sample-video.mp4` | Grayscale, invert colours, posterize, adjust brightness, or trim. Use **Preview frame** before processing the clip. | H.264 MP4 with its first audio track encoded as AAC, when present |
+| Text | UTF-8 TXT, pasted text, or `samples/sample-text.txt` | Change case, clean spacing, find and replace, or format as HTML. Compare the word and character counts. | UTF-8 TXT or a self-contained HTML document |
+
+1. Choose a workbench at the top and use **Open** to select a file or load the included sample.
+2. Choose an effect and review its settings. Audio and Text preview the result as you edit. Video processes the whole clip after you select **Apply**.
+3. Select **Apply**, then select a **Save** button. Use **Undo** to recover up to three previous applied versions in Audio, Video and Text.
+4. Use **Reset adjustment** to clear the current settings or **Restore original** to recover the opened file.
+
+For Audio, a volume setting of 50 preserves the source level. Echo adds a quieter copy after the selected delay. Join and blend require matching rates, channel counts and bit depths. Blend pads the shorter clip with silence.
+
+For Text, find and replace matches exact, case-sensitive text. HTML formatting controls the font, size, emphasis, colours, alignment and spacing. Markup characters from the source remain literal text in the exported document.
+
+## Image parameter mappings
 
 | Control | Default | Processing value |
 | --- | --- | --- |
@@ -55,9 +74,11 @@ Colour results are rounded and clipped to the 8-bit range. Grayscale retains the
 
 - `main.py` routes Image, Audio, Video and Text.
 - `Images/` contains Pillow and NumPy processing, drawing, histogram calculations and image input/output.
-- `UI/` handles the workflow, friendly controls, previews and disabled future sections.
-- `Sound/`, `Video/` and `Text/` contain the planned operation signatures as TODO comments.
-- `tests/` covers formulas and the editor workflow. `samples/` contains two generated illustrations.
+- `Sound/` implements integer PCM audio operations and WAV I/O.
+- `Video/` probes and processes MP4 clips frame by frame using FFmpeg and the Image filters.
+- `Text/` handles UTF-8 editing, counts and HTML output.
+- `UI/` handles the editing workflow, controls and previews.
+- `tests/` covers media processing and the editing workflow. `samples/` contains generated demonstration files.
 
 Install `requirements-dev.txt` in the environment, then verify:
 
@@ -74,4 +95,8 @@ The standalone drawing window is available through `python -m Images.image_draw`
 - Rotation expands the canvas and rejects angles that would exceed the 24-megapixel working limit. It fills new corners white on opaque images and leaves them transparent on images with alpha.
 - Blending resizes the second image to match the current edit. Drawing keeps the edited image's full resolution and uses a pointer on a scaled preview.
 - Editing history keeps up to five applied versions and reduces that count for large images. Opening another image starts a new session for that image.
-- Audio, Video and Text expose disabled layouts while their processors are being developed. See the [roadmap](ROADMAP.md).
+- Audio accepts mono or stereo integer PCM WAV, at 8, 16, 24 or 32 bits and 1–96 kHz. Inputs are limited to 20 MB and 60 seconds. Join and echo exports use the same limits.
+- Video accepts MP4 inputs up to 20 MB and 30 seconds, with a maximum of 1080p and 60 fps. Source playback depends on the codecs supported by your browser. Exports use a constant frame rate. Extra audio tracks and subtitles are omitted.
+- Text accepts UTF-8 documents up to 256 KB. Words are counted as whitespace-separated sequences. The character count includes spaces and line breaks.
+
+See the [roadmap](ROADMAP.md) for optional improvements.

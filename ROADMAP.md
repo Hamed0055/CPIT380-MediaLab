@@ -1,12 +1,10 @@
 # MediaLab roadmap
 
-V1.2 completes the Image workbench. The next phases use the same workflow: open, edit, preview, apply and save. Add each processor as a plain Python function with tests before wiring it into Streamlit.
+The local app includes Image, Audio, Video and Text editors with a shared editing workflow, sample files and automated checks. See the [README](README.md) for setup and the supported input and output formats.
 
-| Priority | Essential proposal work | Later improvements |
+| Area | Available | Optional improvements |
 | --- | --- | --- |
-| 1. Audio | Read and export PCM WAV. Implement volume, reverse and echo with frame-aware operations. Preserve rate, channels and sample width and test clipping boundaries. | Trim, join, blend, fades, waveform display and MP3 if straightforward. |
-| 2. Video | Read a short MP4, report dimensions, frame rate and duration, then apply grayscale, inversion and posterization one frame at a time using the Image modules. Display progress and clean up temporary files. | Frame extraction, trimming, brightness, contrast, flipping and retaining source audio where practical. |
-| 3. Text | Read or paste plain text. Add case changes, whitespace cleanup, literal find and replace, counts and escaped HTML output. Provide TXT and HTML export. | Additional formatting, line order and deduplication. Keep the interface focused on plain text. |
-| 4. Integration | Test all four workbenches on Linux and Windows. Prepare a repeatable demonstration and document input limits and any silent video output. | Additional codecs and detailed previews only after the required flows work. |
-
-Planned function signatures and method notes live beside the corresponding modules in `Sound/sound_effects.py`, `Video/video_effects.py` and `Text/text_operations.py`.
+| Image | Filters, adjustments, transformations, drawing, blending, histograms and PNG export | Crop and additional output formats |
+| Audio | PCM WAV import and export, volume, reverse, echo, trim, join and blend | Waveform display, fades and compressed audio support |
+| Video | MP4 import, frame preview, filters, brightness, trim and H.264 export with the first audio track | Frame export, more codecs and support for multiple audio tracks |
+| Text | TXT or paste input, case changes, whitespace cleanup, find and replace, counts, formatting, and TXT and HTML export | Line sorting and deduplication |
