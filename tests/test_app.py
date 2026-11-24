@@ -34,15 +34,15 @@ def apply(app):
     assert not app.exception
 
 
-def test_navigation_and_disabled_future_sections():
+def test_navigation_and_open_menus():
     app = launch()
     assert app.title[0].value == "MediaLab"
     for media in ("Audio", "Video", "Text"):
         app.segmented_control(key="media").set_value(media).run()
         assert not app.exception
-        assert app.info[0].value == f"{media} · Under Development"
-        assert all(button.proto.disabled for button in app.button)
-        assert all(uploader.proto.disabled for uploader in app.file_uploader)
+        assert all("Under Development" not in item.value for item in app.info)
+        if media != "Video" or not app.warning:
+            assert not app.file_uploader[0].proto.disabled
 
 
 def test_live_preview_sequential_apply_undo_and_restore():
@@ -127,3 +127,40 @@ def test_drawing_draft_survives_switches_and_applies_at_source_size():
     assert not app.session_state.strokes
     app.button(key="undo-image").click().run()
     assert app.session_state.edited_image.getpixel((0, 0)) == (255, 0, 0)
+
+
+def test_audio_reverse_apply_and_undo():
+    from Sound import sound_effects
+
+    app = launch()
+    app.segmented_control(key="media").set_value("Audio").run()
+    payload = (APP.parent / "samples" / "sample-tone.wav").read_bytes()
+    app.file_uploader[0].upload("test.wav", payload, "audio/wav").run()
+    source = sound_effects.read_wav(payload)
+    app.selectbox[0].set_value("Reverse").run()
+    assert not app.exception
+    assert app.session_state["media-Audio"]["original"].samples.tolist() == source.samples.tolist()
+    next(button for button in app.button if button.label == "Apply").click().run()
+    assert not app.exception
+    state = app.session_state["media-Audio"]
+    assert state["edited"].samples.tolist() == source.samples[::-1].tolist()
+    next(button for button in app.button if button.label == "Undo").click().run()
+    assert not app.exception
+    assert app.session_state["media-Audio"]["edited"] is state["original"]
+
+
+def test_text_edit_format_and_preserve_session():
+    app = launch()
+    app.segmented_control(key="media").set_value("Text").run()
+    app.file_uploader[0].upload("test.txt", b"moon & sea", "text/plain").run()
+    app.selectbox[0].set_value("Uppercase").run()
+    next(button for button in app.button if button.label == "Apply").click().run()
+    assert not app.exception
+    assert app.session_state["media-Text"]["edited"][0] == "MOON & SEA"
+    app.selectbox[0].set_value("Format as HTML").run()
+    next(box for box in app.checkbox if box.label == "Bold").set_value(True).run()
+    next(button for button in app.button if button.label == "Apply").click().run()
+    assert not app.exception and app.session_state["media-Text"]["edited"][1]["bold"]
+    app.segmented_control(key="media").set_value("Image").run()
+    app.segmented_control(key="media").set_value("Text").run()
+    assert not app.exception and app.session_state["media-Text"]["original"][0] == "moon & sea"

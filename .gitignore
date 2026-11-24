@@ -48,3 +48,7 @@ histogram_demo.png
 *.mov
 *.avi
 !samples/*.png
+
+# Generated, small course demonstrations
+!samples/sample-tone.wav
+!samples/sample-video.mp4

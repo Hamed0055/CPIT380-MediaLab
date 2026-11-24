@@ -5,7 +5,9 @@ from pathlib import Path
 import streamlit as st
 
 from UI.images import render_image_workbench
-from UI.planned import render_planned
+from UI.audio import render_audio
+from UI.text import render_text
+from UI.video import render_video
 
 STYLE = Path(__file__).resolve().parent / "UI" / "studio.css"
 
@@ -21,10 +23,12 @@ def main():
             "Media type", ["Image", "Audio", "Video", "Text"],
             default="Image", key="media", label_visibility="collapsed", required=True,
         )
-    if media == "Image":
-        render_image_workbench()
-    else:
-        render_planned(media)
+    {
+        "Image": render_image_workbench,
+        "Audio": render_audio,
+        "Video": render_video,
+        "Text": render_text,
+    }[media]()
 
 
 if __name__ == "__main__":
