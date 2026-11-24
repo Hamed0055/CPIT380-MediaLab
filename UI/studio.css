@@ -1,0 +1,56 @@
+/* Compact workbench spacing while keeping native controls and focus styles. */
+[data-testid="stMainBlockContainer"] {
+    max-width: 104rem;
+    padding-top: 3.5rem;
+    padding-bottom: 2rem;
+}
+
+.st-key-medialab-header {
+    border-bottom: 1px solid #d5e0ed;
+    padding-bottom: .55rem;
+}
+
+.st-key-medialab-header h1 {
+    font-size: clamp(1.65rem, 2.6vw, 2.15rem);
+    letter-spacing: -.035em;
+    padding: 0;
+}
+
+.st-key-media-toolbar {
+    background: #f2f6fb;
+    padding: .6rem .7rem;
+    border-radius: .55rem;
+}
+
+.st-key-image-toolbox {
+    padding: .1rem .75rem .25rem .1rem;
+}
+
+:is(.st-key-image-preview, .st-key-histogram-preview) [data-testid="stImage"] img {
+    display: block;
+    max-height: min(42vh, 440px);
+    object-fit: contain;
+    border-radius: .4rem;
+    background-color: #f1f4f8;
+    background-image: conic-gradient(#e3e9f1 25%, #f5f7fb 0 50%, #e3e9f1 0 75%, #f5f7fb 0);
+    background-size: 16px 16px;
+}
+
+.st-key-histogram-preview [data-testid="stImage"] img {
+    max-height: min(27vh, 270px);
+}
+
+.st-key-histogram-plots [data-testid="stImage"] img {
+    max-height: 17rem;
+    background: white;
+    border-radius: 0;
+}
+
+@media (max-width: 700px) {
+    [data-testid="stMainBlockContainer"] {
+        padding: 3.25rem 1rem 1.5rem;
+    }
+    .st-key-image-toolbox {
+        padding-right: 0;
+    }
+}

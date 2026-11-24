@@ -8,19 +8,22 @@ HEIGHT = 500
 
 
 # 01. Draw Shape: Adds a line, rectangle, or ellipse to a Pillow image.
-def draw_shape(image, tool, start, end, color, thickness):
+def draw_shape(image, tool, start, end, color, thickness, *, filled=False):
     draw = ImageDraw.Draw(image)
     x0, y0 = start
     x1, y1 = end
 
-    if tool == "Line":
+    if start == end:
+        pencil_stroke(image, start, end, color, thickness)
+    elif tool == "Line" or x0 == x1 or y0 == y1:
         draw.line((x0, y0, x1, y1), fill=color, width=thickness)
     else:
         box = (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+        fill = color if filled else None
         if tool == "Rectangle":
-            draw.rectangle(box, outline=color, width=thickness)
+            draw.rectangle(box, fill=fill, outline=color, width=thickness)
         elif tool == "Ellipse":
-            draw.ellipse(box, outline=color, width=thickness)
+            draw.ellipse(box, fill=fill, outline=color, width=thickness)
 
 
 # 02. Pencil Stroke: Connects two mouse positions with a colored line.

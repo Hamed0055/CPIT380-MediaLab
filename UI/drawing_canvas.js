@@ -5,8 +5,10 @@ export default function ({ parentElement, data, setTriggerValue }) {
     canvas.width = image.width = data.width;
     canvas.height = image.height = data.height;
     image.src = data.image;
+    image.parentElement.style.maxWidth = data.width + "px";
     const ctx = canvas.getContext("2d");
     ctx.strokeStyle = data.color;
+    ctx.fillStyle = data.color;
     ctx.lineWidth = data.thickness;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -40,7 +42,8 @@ export default function ({ parentElement, data, setTriggerValue }) {
             const height = Math.abs(endY - y) / 2;
             if (width && height) ctx.ellipse((x + endX) / 2, (y + endY) / 2, width, height, 0, 0, 2 * Math.PI);
         }
-        ctx.stroke();
+        if (data.filled) ctx.fill();
+        else ctx.stroke();
     }
 
     canvas.onpointerdown = (event) => {
@@ -67,7 +70,7 @@ export default function ({ parentElement, data, setTriggerValue }) {
             points.push(point);
         }
         submitted = true;
-        setTriggerValue("action", { points, version: data.version });
+        setTriggerValue("action", { points, tool: data.tool, version: data.version });
     };
     canvas.onpointercancel = () => {
         pointer = null;

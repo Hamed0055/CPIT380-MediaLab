@@ -10,7 +10,8 @@ from Images import Image_filters as filters
 from Images import image_histogram as hist
 from Images.image_draw import draw_shape, pencil_stroke, pick_color
 from Images.image_io import download_name, png_bytes, read_image
-from UI.drawing import edit_canvas, fit_canvas
+from UI.drawing import draw_strokes, pixel_position
+from UI.image_controls import brightness_offset, channel_gain, intensity_cutoff
 
 
 ALL_FILTERS = [
@@ -22,6 +23,7 @@ ALL_FILTERS = [
     (filters.adjust_rgb_channels, ()),
     (filters.rotate_image_by_angle, (90,)),
     (filters.mirror_horizontal, ()),
+    (filters.mirror_vertical, ()),
     (filters.adjust_brightness, (0.5,)),
     (filters.adjust_contrast, (0.5,)),
     (filters.blur_image, (2,)),
@@ -37,7 +39,7 @@ def test_filters_leave_sources_unchanged(mode, operation, args):
     before = image.tobytes()
     arg_bytes = [arg.tobytes() for arg in args if isinstance(arg, Image.Image)]
     result = operation(image, *args)
-    assert result.mode == "RGB" and result is not image
+    assert result.mode == ("RGBA" if image.has_transparency_data else "RGB") and result is not image
     assert image.mode == mode and image.tobytes() == before
     assert [arg.tobytes() for arg in args if isinstance(arg, Image.Image)] == arg_bytes
 
@@ -46,7 +48,7 @@ def test_channel_formulas():
     img = Image.new("RGB", (1, 1), (90, 150, 240))
     assert filters.grayscale_average(img).getpixel((0, 0)) == (160, 160, 160)
     assert filters.negative(img).getpixel((0, 0)) == (165, 105, 15)
-    assert filters.sepia_matrix(img).getpixel((0, 0)) == (196, 174, 136)
+    assert filters.sepia_matrix(img).getpixel((0, 0)) == (196, 175, 136)
     assert filters.make_sunset(img, 0.5).getpixel((0, 0)) == (90, 75, 120)
     assert filters.adjust_rgb_channels(img, 200, 0, 200).getpixel((0, 0)) == (180, 0, 255)
     assert filters.adjust_brightness(img, 0).getpixel((0, 0)) == (0, 0, 0)
@@ -89,6 +91,7 @@ def test_blend_resizes_second_and_weights_it():
         (filters.posterize_n_levels, (1,), ValueError),
         (filters.posterize_n_levels, (2.5,), TypeError),
         (filters.make_sunset, (float("nan"),), ValueError),
+        (filters.adjust_brightness, (10**400,), ValueError),
         (filters.adjust_rgb_channels, (True,), TypeError),
         (filters.rotate_image_by_angle, (90, (1, 2)), ValueError),
         (filters.adjust_brightness, (-0.1,), ValueError),
@@ -128,12 +131,57 @@ def test_histogram_adjustments_and_plot():
     assert sum(patch.get_height() for patch in fig.axes[0].patches) == 4
 
 
-def test_transparent_input_flattens_consistently():
+def test_transparency_and_visible_counts():
     im = Image.new("RGBA", (2, 1), (255, 0, 0, 0))
-    im.putpixel((1, 0), (0, 0, 0, 255))
-    assert hist.grayscale_histogram(im)[255] == 1
-    assert hist.adjust_brightness(im, 0).getpixel((0, 0)) == (255, 255, 255)
-    assert filters.negative(im).getpixel((0, 0)) == (0, 0, 0)
+    im.putpixel((1, 0), (40, 50, 60, 120))
+    counts = hist.grayscale_histogram(im)
+    assert sum(counts) == 1 and counts[48] == 1
+    assert hist.adjust_brightness(im, 0).tobytes() == im.tobytes()
+    assert filters.negative(im).getpixel((0, 0)) == (0, 255, 255, 0)
+    assert filters.negative(im).getpixel((1, 0)) == (215, 205, 195, 120)
+    assert filters.adjust_contrast(im, 0).getpixel((1, 0)) == (48, 48, 48, 120)
+
+
+def test_blend_and_blur_do_not_bring_hidden_colour_into_view():
+    hidden = Image.new("RGBA", (3, 1), (0, 255, 0, 0))
+    opaque = Image.new("RGB", (3, 1), (240, 0, 0))
+    assert filters.blend_images(hidden, opaque, 0).tobytes() == hidden.tobytes()
+    assert filters.blend_images(hidden, opaque, 1).tobytes() == opaque.tobytes()
+    assert filters.blend_images(hidden, opaque, 0.5).getpixel((0, 0)) == (240, 0, 0, 128)
+    hidden.putpixel((1, 0), (255, 0, 0, 255))
+    blurred = filters.blur_image(hidden, 1)
+    red, green, blue, alpha = blurred.getpixel((0, 0))
+    assert red >= 250 and green == blue == 0 and 0 < alpha < 255
+
+
+def test_neutral_and_endpoint_mappings():
+    assert [brightness_offset(x) for x in (0, 50, 100)] == [-128, 0, 128]
+    assert [channel_gain(x) for x in (0, 50, 100)] == [0, 1, 2]
+    assert [intensity_cutoff(x) for x in (0, 50, 100)] == [0, 128, 255]
+    im = Image.new("RGBA", (4, 3), (31, 49, 127, 73))
+    neutral = [
+        hist.adjust_brightness(im, 0), filters.adjust_contrast(im, 1),
+        filters.adjust_rgb_channels(im), filters.make_sunset(im, 1),
+        filters.blur_image(im, 0), filters.adjust_brightness(im, 1),
+        filters.rotate_image_by_angle(im, 0),
+    ]
+    assert all(result.tobytes() == im.tobytes() and result is not im for result in neutral)
+    assert hist.adjust_brightness(im, 128).getpixel((0, 0)) == (159, 177, 255, 73)
+    assert hist.adjust_brightness(im, -128).getpixel((0, 0)) == (0, 0, 0, 73)
+    assert filters.adjust_rgb_channels(im, 0, 200, 200).getpixel((0, 0)) == (0, 98, 254, 73)
+    assert filters.binary_threshold(im, 0).getpixel((0, 0)) == (255, 255, 255, 73)
+    assert filters.binary_threshold(im, 255).getpixel((0, 0)) == (0, 0, 0, 73)
+
+
+def test_rgba_geometry_and_rotation_bounds():
+    im = Image.new("RGBA", (5, 3), (0, 0, 0, 0))
+    im.putpixel((0, 0), (255, 0, 0, 180))
+    assert filters.mirror_vertical(im).getpixel((0, 2)) == (255, 0, 0, 180)
+    assert filters.rotate_image_by_angle(im, 90, max_pixels=15).size == (3, 5)
+    rotated = filters.rotate_image_by_angle(im, 23)
+    assert rotated.mode == "RGBA" and rotated.getpixel((0, 0))[3] == 0
+    with pytest.raises(ValueError, match="too large"):
+        filters.rotate_image_by_angle(im, 23, max_pixels=15)
 
 
 @pytest.mark.parametrize("mode,fmt", [("L", "PNG"), ("RGB", "JPEG"), ("RGBA", "PNG"), ("P", "GIF")])
@@ -177,8 +225,18 @@ def test_pencil_and_canvas_copy():
     im = Image.new("RGB", (20, 20), "white")
     pencil_stroke(im, (4, 4), (4, 4), "#000000", 1)
     assert pick_color(im, 4, 4) == (0, 0, 0)
-    result = edit_canvas(im, "Pencil", [[12, 2], [12, 12]], "#003399", 3)
+    result = draw_strokes(im, [("Pencil", ((12, 2), (12, 12)), "#003399", 3, False)])
     assert pick_color(result, 12, 7) == (0, 51, 153)
     assert pick_color(im, 12, 7) == (255, 255, 255)
-    assert fit_canvas(im).size == (800, 500)
-    assert fit_canvas(None).getpixel((400, 250)) == (255, 255, 255)
+    assert result.size == im.size
+
+
+def test_full_size_drawing_and_filled_shape():
+    im = Image.new("RGBA", (1800, 1000), (0, 0, 0, 0))
+    assert pixel_position((0, 0), (800, 400), im.size) == (0, 0)
+    assert pixel_position((799, 399), (800, 400), im.size) == (1799, 999)
+    assert pixel_position((0, 0), (1, 1), (1, 1)) == (0, 0)
+    result = draw_strokes(im, [("Rectangle", ((20, 40), (200, 300)), "#003399", 4, True)])
+    assert result.size == (1800, 1000)
+    assert result.getpixel((100, 100)) == (0, 51, 153, 255)
+    assert result.getpixel((0, 0)) == (0, 0, 0, 0)

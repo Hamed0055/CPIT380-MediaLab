@@ -6,24 +6,24 @@ All processing functions return a new image and leave the original unchanged.
 
 from PIL import Image
 from matplotlib.figure import Figure
+from matplotlib.ticker import MaxNLocator, StrMethodFormatter
 
 if __package__:
-    from .Image_filters import _check_number, _rgb, adjust_contrast as adjust_contrast
+    from .Image_filters import _check_number, _map_colours, _visible_histogram, _working_image, adjust_contrast as adjust_contrast
 else:
-    from Image_filters import _check_number, _rgb, adjust_contrast as adjust_contrast
+    from Image_filters import _check_number, _map_colours, _visible_histogram, _working_image, adjust_contrast as adjust_contrast
 
 
 # 01. Brightness: Adds or subtracts a fixed amount from each RGB channel.
 def adjust_brightness(image: Image.Image, amount: int = 0) -> Image.Image:
     amount = _check_number("Brightness amount", amount, -255, 255)
-    image = _rgb(image)
-    return image.point(lambda value: max(0, min(255, round(value + amount))))
+    return _map_colours(image, lambda value: max(0, min(255, round(value + amount))))
 
 
-# 02. Grayscale Histogram: Counts how many pixels have each intensity (0–255).
+# 02. Grayscale Histogram: Counts each visible pixel in its intensity bin (0–255).
 def grayscale_histogram(image: Image.Image) -> list[int]:
     # Pillow performs the same one-increment-per-pixel loop in compiled code.
-    return _rgb(image).convert("L").histogram()
+    return _visible_histogram(_working_image(image))
 
 
 # 03. Contrast: Re-exported from Image_filters so both tools use the same formula.
@@ -46,9 +46,9 @@ def binned_histogram(image: Image.Image, bins: int = 32) -> list[int]:
 
 # 05. Plot Histogram: Creates a Matplotlib figure for a selected number of bins.
 def plot_histogram(
-    image: Image.Image, bins: int = 32, title: str = "Histogram", *, figure: Figure | None = None
+    image: Image.Image, bins: int = 32, title: str = "Histogram", *, figure: Figure | None = None, counts: list[int] | None = None
 ):
-    counts = binned_histogram(image, bins)
+    counts = binned_histogram(image, bins) if counts is None else counts
     bin_width = 256 / bins
     centers = [(i + 0.5) * bin_width for i in range(bins)]
 
@@ -58,10 +58,12 @@ def plot_histogram(
     ax.spines[["top", "right"]].set_visible(False)
     ax.grid(axis="y", color="#E6EBF4", linewidth=0.8)
     ax.set_axisbelow(True)
+    ax.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
     ax.set(
         xlim=(0, 256),
-        xlabel="Grayscale intensity (0–255)",
-        ylabel="Pixel count",
+        xlabel="Brightness (dark to light)",
+        ylabel="Pixels",
         title=title,
     )
     return fig

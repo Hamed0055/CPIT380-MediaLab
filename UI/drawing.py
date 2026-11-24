@@ -1,122 +1,141 @@
-"""Display a pointer canvas and pass completed strokes to Pillow."""
+"""Connect a scaled browser canvas to the full-resolution Pillow editor."""
 
 from base64 import b64encode
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image
 import streamlit as st
 
-from Images.image_draw import HEIGHT, WIDTH, draw_shape, pencil_stroke, pick_color
-from Images.image_io import download_name, png_bytes
+from Images.image_draw import draw_shape, pencil_stroke, pick_color
+from Images.image_io import png_bytes
+from UI.image_controls import explain_operation
 
 
 TOOLS = ("Pencil", "Line", "Rectangle", "Ellipse", "Eyedropper")
-CANVAS_FILE = Path(__file__).with_name("drawing_canvas.js")
+CANVAS_JS = Path(__file__).with_name("drawing_canvas.js").read_text(encoding="utf-8")
+PREVIEW_LIMIT = (860, 470)
 
 
-# Fit canvas: Centre a copy of the original on the drawing tool's white canvas.
-def fit_canvas(original):
-    canvas = Image.new("RGB", (WIDTH, HEIGHT), "white")
-    if original is None:
-        return canvas
-    fitted = ImageOps.contain(original.convert("RGBA"), canvas.size)
-    origin = ((WIDTH - fitted.width) // 2, (HEIGHT - fitted.height) // 2)
-    canvas.paste(fitted, origin, fitted)
-    return canvas
+# Pixel position: Map the outermost preview coordinates to the original image edges.
+def pixel_position(point, preview_size, image_size):
+    return tuple(
+        round(position * (full - 1) / (preview - 1)) if preview > 1 else (full - 1) // 2
+        for position, preview, full in zip(point, preview_size, image_size)
+    )
 
 
-# Edit canvas: Reuse the drawing module to apply pointer positions to a new bitmap.
-def edit_canvas(image, tool, points, color, thickness):
+# Draw strokes: Replay pending gestures on an independent copy of the current edit.
+def draw_strokes(image, strokes):
     result = image.copy()
-    if tool == "Pencil":
-        pencil_stroke(result, points[0], points[0], color, thickness)
-        for start, end in zip(points, points[1:]):
-            pencil_stroke(result, start, end, color, thickness)
-    else:
-        draw_shape(result, tool, points[0], points[-1], color, thickness)
+    for tool, points, colour, thickness, filled in strokes:
+        if tool == "Blank canvas":
+            result = Image.new(result.mode, result.size, "white")
+        elif tool == "Pencil":
+            pencil_stroke(result, points[0], points[0], colour, thickness)
+            for start, end in zip(points, points[1:]):
+                pencil_stroke(result, start, end, colour, thickness)
+        else:
+            draw_shape(result, tool, points[0], points[-1], colour, thickness, filled=filled)
     return result
 
 
-# Reset canvas: Restore the source or start a blank canvas while retaining the original.
-def reset_canvas(blank=False):
+# Change draft: Update the pending strokes and invalidate events from the old canvas.
+def change_draft(action):
     state = st.session_state
-    state.drawing = fit_canvas(None if blank else state.original_image)
-    state.drawing_source = state.source_version
-    state.drawing_version = state.get("drawing_version", 0) + 1
-    state.drawing_png = png_bytes(state.drawing)
+    if action == "undo" and state.strokes:
+        state.strokes.pop()
+    elif action == "blank":
+        state.strokes.append(("Blank canvas", (), "", 0, False))
+    elif action == "clear":
+        state.strokes.clear()
+    state.canvas_version += 1
 
 
-# Canvas action: Commit one stroke or use its first point to sample a color.
+# Canvas action: Validate one gesture, then add a stroke or sample a pixel.
 def canvas_action():
     state = st.session_state
     event = state.media_canvas.action
-    if not isinstance(event, dict) or event.get("version") != state.drawing_version:
+    if (not isinstance(event, dict) or event.get("version") != state.canvas_version
+            or event.get("tool") != state.drawing_tool):
         return
     points = event.get("points")
     if not isinstance(points, list) or not 1 <= len(points) <= 4096:
         return
+    width, height = state.canvas_size
     if any(
-        not isinstance(point, list)
-        or len(point) != 2
+        not isinstance(point, list) or len(point) != 2
         or any(type(value) is not int for value in point)
-        or not (0 <= point[0] < WIDTH and 0 <= point[1] < HEIGHT)
+        or not (0 <= point[0] < width and 0 <= point[1] < height)
         for point in points
     ):
         return
 
+    base = state.edited_image
+    pixels = tuple(pixel_position(point, state.canvas_size, base.size) for point in points)
     tool = state.drawing_tool
     if tool == "Eyedropper":
-        red, green, blue = pick_color(state.drawing, *points[0])
-        state.drawing_color = f"#{red:02x}{green:02x}{blue:02x}"
+        canvas = draw_strokes(base, state.strokes) if state.strokes else base
+        red, green, blue = pick_color(canvas, *pixels[0])[:3]
+        state.drawing_colour = f"#{red:02x}{green:02x}{blue:02x}"
     else:
-        state.drawing = edit_canvas(
-            state.drawing, tool, points, state.drawing_color, state.drawing_thickness,
-        )
-        state.drawing_png = png_bytes(state.drawing)
-    state.drawing_version += 1
+        filled = tool in ("Rectangle", "Ellipse") and state.get("drawing_fill") == "Filled"
+        state.strokes.append((tool, pixels, state.drawing_colour, state.drawing_thickness, filled))
+    state.canvas_version += 1
 
 
-# Render drawing: Show the current bitmap, controls, and an editable preview layer.
-def render_drawing(controls, result):
+# Drawing settings: Show shape fill only for closed shapes.
+def drawing_controls():
     state = st.session_state
-    if state.get("drawing_source") != state.source_version:
-        reset_canvas()
-    with controls:
-        st.markdown("**Drawing settings**")
-        tool = st.selectbox("Tool", TOOLS, key="drawing_tool")
-        color = st.color_picker("Colour", "#2354d6", key="drawing_color")
-        thickness = st.slider("Brush thickness (px)", 1, 25, 4, key="drawing_thickness")
-        reset, blank = st.columns(2)
-        reset.button("Reset", on_click=reset_canvas, key="reset-drawing")
-        blank.button("Blank canvas", on_click=reset_canvas, args=(True,))
-        st.download_button(
-            "Save PNG", state.drawing_png, download_name(state.original_name, "drawing"),
-            mime="image/png", on_click="ignore",
-        )
+    tool = st.selectbox("Drawing tool", TOOLS, key="drawing_tool")
+    st.color_picker("Colour", "#2354d6", key="drawing_colour")
+    if tool != "Eyedropper":
+        st.slider("Brush thickness (px)", 1, 50, 4, key="drawing_thickness")
+    if tool in ("Rectangle", "Ellipse"):
+        st.segmented_control("Shape style", ("Outline", "Filled"), default="Outline",
+                             required=True, key="drawing_fill")
+    with st.container(horizontal=True, gap="small"):
+        st.button("Undo stroke", icon=":material/undo:", on_click=change_draft, args=("undo",),
+                  disabled=not state.strokes)
+        st.button("Clear drawing", icon=":material/delete_sweep:", on_click=change_draft, args=("clear",),
+                  disabled=not state.strokes)
+    st.button("Blank canvas", on_click=change_draft, args=("blank",), type="tertiary")
+    explain_operation("Drawing")
 
-    with result:
-        component = st.components.v2.component(
-            "medialab_canvas",
-            html='<div class="drawing"><img alt="" /><canvas aria-label="Drawing canvas"></canvas></div>',
-            css="""
-                .drawing {
-                    position: relative; width: 100%; max-width: 800px; overflow: hidden;
-                    border: 1px solid #a9b5cd; border-radius: 7px; background: white;
-                }
-                .drawing img { display: block; width: 100%; }
-                .drawing canvas { position: absolute; inset: 0; width: 100%; height: 100%;
-                    cursor: crosshair; touch-action: none; }
-            """,
-            js=CANVAS_FILE.read_text(encoding="utf-8"),
-        )
-        component(
-            key="media_canvas",
-            data={
-                "image": "data:image/png;base64," + b64encode(state.drawing_png).decode("ascii"),
-                "width": WIDTH, "height": HEIGHT, "tool": tool, "color": color,
-                "thickness": thickness, "version": state.drawing_version,
-            },
-            on_action_change=canvas_action,
-        )
-        instruction = "Click a pixel to pick its colour." if tool == "Eyedropper" else "Drag on the canvas to draw."
-        st.caption(f"{instruction} Canvas exports at {WIDTH} × {HEIGHT} px.")
+
+# Show canvas: Send only a small display bitmap while retaining full-size coordinates in Python.
+def show_canvas(image):
+    state = st.session_state
+    thumbnail = image.copy()
+    thumbnail.thumbnail(PREVIEW_LIMIT)
+    state.canvas_size = thumbnail.size
+    tool = state.drawing_tool
+    component = st.components.v2.component(
+        "medialab_canvas",
+        html='<div class="drawing"><img alt="" /><canvas aria-label="Drawing canvas"></canvas></div>',
+        css="""
+            .drawing {
+                position: relative; width: 100%; overflow: hidden; border-radius: .4rem;
+                background-color: #f1f4f8;
+                background-image: conic-gradient(#e3e9f1 25%, #f5f7fb 0 50%, #e3e9f1 0 75%, #f5f7fb 0);
+                background-size: 16px 16px;
+            }
+            .drawing img { display: block; width: 100%; height: auto; }
+            .drawing canvas { position: absolute; inset: 0; width: 100%; height: 100%;
+                cursor: crosshair; touch-action: none; }
+        """,
+        js=CANVAS_JS,
+    )
+    component(
+        key="media_canvas",
+        data={
+            "image": "data:image/png;base64," + b64encode(png_bytes(thumbnail)).decode("ascii"),
+            "width": thumbnail.width, "height": thumbnail.height,
+            "tool": tool, "color": state.drawing_colour,
+            "thickness": max(1, state.get("drawing_thickness", 4) * thumbnail.width / image.width),
+            "filled": tool in ("Rectangle", "Ellipse") and state.get("drawing_fill") == "Filled",
+            "version": state.canvas_version,
+        },
+        on_action_change=canvas_action,
+    )
+    instruction = "Click a pixel to pick its colour." if tool == "Eyedropper" else "Drag on the image to draw."
+    st.caption(instruction)

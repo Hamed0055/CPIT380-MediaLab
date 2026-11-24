@@ -1,212 +1,226 @@
-"""Upload one original and preview edits in three image tools."""
+"""Manage the original, applied edits and the current temporary preview."""
 
+from io import BytesIO
 from pathlib import Path
 
 import streamlit as st
 
-from Images import Image_filters as filters
 from Images import image_histogram as histogram
 from Images.image_io import UPLOAD_TYPES, download_name, png_bytes, read_image
-from UI.drawing import render_drawing
+from UI.drawing import draw_strokes, drawing_controls, show_canvas
+from UI.image_controls import (
+    ADJUSTMENTS, BINS, FILTERS, TRANSFORMS, adjustment_preview, combination_preview,
+    explain_operation, filter_preview, tone_preview, transform_preview,
+)
 
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
-FILTERS = {
-    "Colour and tone": {
-        "Original": None,
-        "Grayscale": filters.grayscale_average,
-        "Negative": filters.negative,
-        "Posterize": filters.posterize_n_levels,
-        "Sepia": filters.sepia_matrix,
-        "Sunset": filters.make_sunset,
-        "RGB channels": filters.adjust_rgb_channels,
-        "Binary threshold": filters.binary_threshold,
-    },
-    "Geometry": {
-        "Mirror horizontally": filters.mirror_horizontal,
-        "Rotate": filters.rotate_image_by_angle,
-    },
-    "Smoothing": {"Gaussian blur": filters.blur_image},
-    "Combine": {"Blend two images": filters.blend_images},
-}
+TOOLS = ("Filters", "Adjustments", "Transformations", "Combination", "Drawing", "Histogram")
+HISTORY_LIMIT = 5
+HISTORY_BYTES = 96 * 1024 * 1024
 
 
-# Reset tool: Refresh the widget keys for this panel and keep the original image.
-def reset_tool(tool):
+# Reset preview: Restore neutral controls and keep or clear the uncommitted drawing.
+def reset_preview(clear_drawing=False):
     state = st.session_state
-    key = f"{tool}_version"
-    state[key] = state.get(key, 0) + 1
+    state.tool_version = state.get("tool_version", 0) + 1
+    if clear_drawing:
+        state.strokes = []
+        state.canvas_version = state.get("canvas_version", 0) + 1
 
 
-# Replace original: Change previews only after a new upload or sample loads successfully.
+# Replace original: Start an independent editing session only after a valid open.
 def replace_original(name, image):
     state = st.session_state
     state.original_name = name
     state.original_image = image
-    state.source_version = state.get("source_version", 0) + 1
+    state.edited_image = image
+    state.saved_png = None
+    state.history = []
     state.upload_error = None
-    reset_tool("filter")
-    reset_tool("histogram")
+    reset_preview(clear_drawing=True)
 
 
-# Load sample: Restore the built-in sample and clear the old file picker.
+# Load sample: Open the included sample and clear the uploader selection.
 def load_sample():
     name = "color-study.png"
     replace_original(name, read_image((SAMPLES / name).read_bytes()))
     st.session_state.upload_version = st.session_state.get("upload_version", 0) + 1
 
 
-# Load upload: Preserve the last valid original when a new file cannot be decoded.
+# Load upload: Keep editing the previous image if the new file is invalid.
 def load_upload(key):
-    upload = st.session_state.get(key)
+    state = st.session_state
+    upload = state.get(key)
+    state.upload_error = None
     if upload is None:
         return
     try:
         replace_original(upload.name, read_image(upload.getvalue()))
     except ValueError as exc:
-        st.session_state.upload_error = str(exc)
+        state.upload_error = str(exc)
 
 
-# Preview: Show an image within a bounded size while keeping exports at full resolution.
-def preview(image, title):
-    with st.container(border=True):
-        st.markdown(f"**{title}**")
-        thumbnail = image.copy()
-        thumbnail.thumbnail((780, 480))
-        st.image(thumbnail, output_format="PNG", alt=f"{title} image")
-        st.caption(f"{image.width} × {image.height} px")
+# Commit edit: Store the previous version and make the preview the current edited image.
+def commit_edit(preview):
+    state = st.session_state
+    state.history.append(state.edited_image)
+    while len(state.history) > 1 and (
+        len(state.history) > HISTORY_LIMIT
+        or sum(image.width * image.height * len(image.getbands()) for image in state.history) > HISTORY_BYTES
+    ):
+        state.history.pop(0)
+    state.edited_image = preview
+    state.saved_png = None
+    reset_preview(clear_drawing=True)
 
 
-# Download: Send an independent PNG copy of the current result.
-def download(image, operation, *, label="Download PNG", key=None):
+# Undo edit: Restore the last applied version and start a clean preview.
+def undo_edit():
+    state = st.session_state
+    state.edited_image = state.history.pop()
+    state.saved_png = None
+    reset_preview(clear_drawing=True)
+
+
+# Restore original: Return to the original with the previous edit available through Undo.
+def restore_original():
+    commit_edit(st.session_state.original_image)
+
+
+# Show image: Use a contained thumbnail in the workspace and display the true image size.
+def show_image(image, title):
+    st.markdown(f"**{title}**")
+    thumbnail = image.copy()
+    thumbnail.thumbnail((860, 470))
+    st.image(thumbnail, output_format="PNG", alt=f"{title} image", width="stretch")
+    st.caption(f"{image.width} × {image.height} px")
+
+
+# Show histograms: Plot the original and output using a common comparison scale.
+def show_histograms(original, edited, bins):
+    images = (original, edited)
+    counts = [histogram.binned_histogram(image, bins) for image in images]
+    maximum = max(1, *(max(group) for group in counts)) * 1.08
+    with st.container(key="histogram-plots"):
+        for column, title, image, group in zip(
+            st.columns(2), ("Original histogram", "Edited histogram"), images, counts,
+        ):
+            figure = histogram.plot_histogram(image, bins, title, counts=group)
+            figure.axes[0].set_ylim(0, maximum)
+            with BytesIO() as plot:
+                figure.savefig(plot, format="png", dpi=116)
+                column.image(plot.getvalue(), width="stretch", alt=title)
+            column.caption(f"{sum(group):,} pixels counted")
+    st.caption("Fully transparent pixels are excluded.")
+
+
+# Tool preview: Collect only the chosen tool's controls and calculate from the applied image.
+def tool_preview(tool, image):
+    state = st.session_state
+    key = f"{tool}-{state.tool_version}"
+    if tool == "Drawing":
+        drawing_controls()
+        return draw_strokes(image, state.strokes) if state.strokes else None, None
+    if tool == "Histogram":
+        bins = st.select_slider("Histogram bins", BINS, value=32, key="histogram-bins")
+        result = tone_preview(image, key)
+        explain_operation("Histogram", "Brightness", "Contrast")
+        return result, bins
+    if tool == "Combination":
+        result = combination_preview(image, key)
+        explain_operation("Blend two images")
+        return result, None
+
+    options, renderer = {
+        "Filters": (FILTERS, filter_preview),
+        "Adjustments": (ADJUSTMENTS, adjustment_preview),
+        "Transformations": (TRANSFORMS, transform_preview),
+    }[tool]
+    label = {"Filters": "Filter", "Adjustments": "Adjustment", "Transformations": "Transformation"}[tool]
+    operation = st.selectbox(label, options, index=None, placeholder=f"Choose a {label.lower()}", key=key)
+    if operation is None:
+        return None, None
+    result = renderer(image, operation, key)
+    details = (operation, "Filter intensity") if tool == "Filters" and operation != "Sunset" else (operation,)
+    explain_operation(*details)
+    return result, None
+
+
+# Open image: Show upload and sample choices without consuming permanent workspace height.
+def open_image():
+    state = st.session_state
+    with st.popover("Open image", icon=":material/folder_open:"):
+        key = f"upload-{state.upload_version}"
+        st.file_uploader("Upload image", type=UPLOAD_TYPES, key=key, on_change=load_upload, args=(key,))
+        st.button("Use sample image", on_click=load_sample)
+        st.caption("Opening an image starts a new edit. Save your current image first if you need it.")
+    st.text(state.original_name)
+
+
+# Edit actions: Apply the preview, recover prior versions and save the last applied image.
+def edit_actions(preview, tool):
+    state = st.session_state
+    if st.button("Apply", icon=":material/check:", key="apply-image", type="primary", disabled=preview is None):
+        commit_edit(preview)
+        st.rerun()
+    st.button("Undo", icon=":material/undo:", key="undo-image", disabled=not state.history, on_click=undo_edit)
+    if tool != "Drawing":
+        st.button("Reset adjustment", icon=":material/restart_alt:", key="reset-adjustment",
+                  on_click=reset_preview)
+    st.button("Restore original", key="restore-original", disabled=state.edited_image is state.original_image,
+              on_click=restore_original, help="Return to the opened image. Undo can bring the edit back.")
+    if state.saved_png is None:
+        state.saved_png = png_bytes(state.edited_image)
     st.download_button(
-        label, png_bytes(image), download_name(st.session_state.original_name, operation),
-        mime="image/png", on_click="ignore", key=key,
+        "Save PNG", state.saved_png, download_name(state.original_name, "edited"),
+        mime="image/png", on_click="ignore", icon=":material/download:", key="save-image",
+        disabled=preview is not None,
+        help="Apply the preview or reset it before saving at full resolution.",
     )
 
 
-# Filter settings: Collect only the controls required by the selected operation.
-def filter_settings(operation, key):
-    if operation == "Posterize":
-        return (st.slider("Levels per channel", 2, 32, 6, key=f"{key}-levels"),)
-    if operation == "Sunset":
-        return (st.slider("Green and blue multiplier", 0.0, 1.0, 0.7, 0.05, key=f"{key}-sunset"),)
-    if operation == "RGB channels":
-        return tuple(
-            st.slider(f"{channel} (%)", 0, 200, 100, 5, key=f"{key}-{channel}")
-            for channel in ("Red", "Green", "Blue")
-        )
-    if operation == "Binary threshold":
-        return (st.slider("Threshold", 0, 255, 128, key=f"{key}-threshold"),)
-    if operation == "Rotate":
-        return (st.slider("Angle (° counterclockwise)", -180, 180, 0, key=f"{key}-angle"),)
-    if operation == "Gaussian blur":
-        return (st.slider("Blur radius (px)", 0.0, 20.0, 2.0, 0.5, key=f"{key}-blur"),)
-    if operation == "Blend two images":
-        second = st.file_uploader("Upload second image", type=UPLOAD_TYPES, key=f"{key}-blend")
-        weight = st.slider("Second image (%)", 0, 100, 50, key=f"{key}-weight") / 100
-        if second is None:
-            return None
-        return (read_image(second.getvalue()), weight)
-    return ()
-
-
-# Render filters: Apply an effect to the original and offer a side-by-side comparison.
-def render_filters(original, controls, result):
-    version = f"filter-{st.session_state.filter_version}"
-    processed = None
-    error = None
-    with controls:
-        st.markdown("**Filter settings**")
-        group = st.selectbox("Category", list(FILTERS), key=f"{version}-category")
-        operation = st.selectbox("Filter", list(FILTERS[group]), key=f"{version}-{group}")
-        try:
-            args = filter_settings(operation, version)
-            if args is not None:
-                function = FILTERS[group][operation]
-                if function is None:
-                    processed = original
-                else:
-                    with st.spinner("Applying filter…"):
-                        processed = function(original, *args)
-        except ValueError as exc:
-            error = str(exc)
-        reset, export = st.columns(2)
-        reset.button("Reset", on_click=reset_tool, args=("filter",), key="reset-filter")
-        if processed is not None:
-            with export:
-                download(processed, operation, key="download-filter")
-
-    with result:
-        before, after = st.columns(2)
-        with before:
-            preview(original, "Original")
-        with after:
-            if processed is not None:
-                preview(processed, "Processed")
-                st.caption("Preview is current.")
-            elif error is not None:
-                st.error(error)
-            else:
-                st.info("Upload a second image to preview the blend.")
-                st.caption("The second image is resized to match the original.")
-
-
-# Render adjustments: Use the histogram module for brightness, contrast and counts.
-def render_adjustments(original, controls, result):
-    version = f"histogram-{st.session_state.histogram_version}"
-    with controls:
-        st.markdown("**Adjustment settings**")
-        amount = st.slider("Brightness offset", -255, 255, 0, key=f"{version}-brightness")
-        factor = st.slider("Contrast multiplier", 0.0, 3.0, 1.0, 0.05, key=f"{version}-contrast")
-        bins = st.select_slider(
-            "Histogram bins", options=[8, 16, 32, 64, 128, 256], value=32, key=f"{version}-bins",
-        )
-        with st.spinner("Updating preview…"):
-            processed = histogram.adjust_contrast(histogram.adjust_brightness(original, amount), factor)
-        reset, export = st.columns(2)
-        reset.button("Reset", on_click=reset_tool, args=("histogram",), key="reset-histogram")
-        with export:
-            download(processed, "adjusted", key="download-histogram")
-
-    with result:
-        preview(processed, "Processed")
-        figures = [
-            histogram.plot_histogram(image, bins, title)
-            for image, title in ((original, "Original histogram"), (processed, "Processed histogram"))
-        ]
-        maximum = max(figure.axes[0].get_ylim()[1] for figure in figures)
-        for column, figure in zip(st.columns(2), figures):
-            figure.axes[0].set_ylim(0, maximum)
-            column.pyplot(figure, alt=figure.axes[0].get_title())
-        st.caption(f"{bins} bins · {original.width * original.height:,} pixels in each histogram.")
-
-
-# Render image workbench: Keep a shared original while users switch or reset tools.
+# Image workbench: Keep the original beside the temporary preview or last applied image.
 def render_image_workbench():
     state = st.session_state
     if "original_image" not in state:
         load_sample()
-    tool = st.segmented_control(
-        "Image tool", ["Filters", "Histogram & adjustments", "Drawing"],
-        default="Filters", required=True, key="image-tool", label_visibility="collapsed",
-    )
-    left, right = st.columns([1, 2.55], gap="medium")
-    with left:
-        with st.container(border=True):
-            st.markdown("**Original image**")
-            key = f"upload-{state.upload_version}"
-            st.file_uploader(
-                "Upload image", type=UPLOAD_TYPES, key=key, on_change=load_upload, args=(key,),
-            )
-            st.button("Use sample image", on_click=load_sample)
-            st.caption(state.original_name)
-            if state.upload_error:
-                st.error(state.upload_error)
-        controls = st.container(border=True)
-    if tool == "Filters":
-        render_filters(state.original_image, controls, right)
-    elif tool == "Histogram & adjustments":
-        render_adjustments(state.original_image, controls, right)
-    else:
-        render_drawing(controls, right)
+    with st.container(horizontal=True, key="media-toolbar", vertical_alignment="center"):
+        open_image()
+        actions = st.container(horizontal=True, vertical_alignment="center")
+    if state.upload_error:
+        st.error(f"{state.upload_error} Your current image is still open.")
+    tool = st.segmented_control("Image tools", TOOLS, default="Filters", required=True,
+                                key="image-tool", label_visibility="collapsed", wrap=True)
+    toolbox, workspace = st.columns([1, 3.25], gap="medium")
+    with toolbox:
+        with st.container(key="image-toolbox"):
+            try:
+                preview, bins = tool_preview(tool, state.edited_image)
+            except ValueError as exc:
+                st.error(str(exc))
+                preview, bins = None, None
+    with actions:
+        edit_actions(preview, tool)
+
+    edited = preview if preview is not None else state.edited_image
+    with workspace:
+        if preview is not None:
+            st.caption("Preview only · Apply to keep these changes.")
+        elif state.edited_image is state.original_image:
+            st.caption("Original ready to edit.")
+        else:
+            st.caption("Edit applied · Ready to save.")
+        with st.container(key="histogram-preview" if bins is not None else "image-preview"):
+            left, right = st.columns(2)
+            with left:
+                show_image(state.original_image, "Original")
+            with right:
+                if tool == "Drawing":
+                    st.markdown("**Drawing preview**")
+                    show_canvas(edited)
+                    st.caption(f"{edited.width} × {edited.height} px")
+                else:
+                    show_image(edited, "Preview" if preview is not None else "Edited")
+        if bins is not None:
+            show_histograms(state.original_image, edited, bins)
