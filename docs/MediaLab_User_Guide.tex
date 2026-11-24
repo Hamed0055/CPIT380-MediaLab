@@ -1,0 +1,69 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage[margin=21mm]{geometry}
+\usepackage{array,booktabs,enumitem,tabularx,xcolor}
+\usepackage{hyperref}
+
+\definecolor{ink}{HTML}{17243A}
+\definecolor{accent}{HTML}{234F9E}
+\hypersetup{
+  pdftitle={MediaLab Quick User Guide},
+  pdfsubject={CPIT-380 Multimedia Processing Toolkit},
+  colorlinks=true,
+  urlcolor=accent
+}
+\pagestyle{empty}
+\renewcommand{\familydefault}{\sfdefault}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlist[enumerate]{leftmargin=1.6em,topsep=3pt,itemsep=3pt}
+\newcommand{\guideheading}[1]{\par\medskip{\large\bfseries\color{accent} #1}\par\smallskip}
+
+\begin{document}
+\color{ink}
+{\fontsize{30}{33}\selectfont\bfseries MediaLab}\par
+{\large Quick user guide}\par
+\smallskip
+{\color{accent}\rule{\linewidth}{0.7pt}}\par
+
+\guideheading{Start}
+From the project folder, run \texttt{./launch.sh} (Linux) or
+\texttt{.\textbackslash launch.bat} (Windows).\par
+Open \url{http://127.0.0.1:8501}.
+For first-time setup, see \texttt{README.md}.
+
+\guideheading{Edit and save}
+\begin{enumerate}
+  \item Pick \textbf{Image}, \textbf{Audio}, \textbf{Video}, or \textbf{Text}.
+  \item Click \textbf{Open image}, \textbf{Open audio}, \textbf{Open video}, or \textbf{Open text}.
+        Upload a file or pick the built-in sample. In Text, you can also paste text and click
+        \textbf{Open pasted text}.
+  \item Choose a tool or effect. Compare the original with the preview.
+        For video, click \textbf{Preview frame} to check one frame.
+  \item Click \textbf{Apply}, then \textbf{Save} in the format below.
+        Download your work before closing or reloading the page.
+\end{enumerate}
+
+\guideheading{Formats and limits}
+{\renewcommand{\arraystretch}{1.28}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{0.12\linewidth}%
+  >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.17\linewidth}@{}}
+\toprule
+Type & \textbf{Input} & \textbf{Save} \\
+\midrule
+Image & PNG, JPEG, BMP, WebP, GIF, TIFF. Up to 20 MB, 12 MP, and 6000 px per side. & PNG \\
+Audio & Mono or stereo PCM WAV. Up to 20 MB and 60 seconds. & WAV \\
+Video & MP4. Up to 20 MB, 30 seconds, 1080p, and 60 fps. The export keeps the first audio track, if present. & MP4 \\
+Text  & UTF-8 TXT or pasted text. Up to 256 KB. & TXT or HTML \\
+\bottomrule
+\end{tabularx}}
+
+\guideheading{If you get stuck}
+\textbf{Save is greyed out.} Click \textbf{Apply} or \textbf{Reset adjustment}.\par
+\textbf{An edit went wrong.} Click \textbf{Undo} for the previous edit or
+\textbf{Restore original} to start over.\par
+\textbf{Video is unavailable.} Install FFmpeg with H.264 (\texttt{libx264}) and AAC support.
+Check that \texttt{ffmpeg} and \texttt{ffprobe} are on your PATH.
+
+\end{document}

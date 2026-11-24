@@ -2,6 +2,8 @@
 
 MediaLab is a local Streamlit app for the **CPIT-380 Multimedia Technologies group project (Group 7)**. It includes four workbenches for images, audio, video and text.
 
+[One-page user guide (PDF)](docs/MediaLab_User_Guide.pdf)
+
 ## Run locally
 
 Use Python 3.12 or newer. From the project directory:
