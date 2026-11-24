@@ -74,4 +74,6 @@ export default function ({ parentElement, data, setTriggerValue }) {
         points = [];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     };
+    canvas.dataset.tool = data.tool;
+    canvas.dataset.version = String(data.version);
 }
