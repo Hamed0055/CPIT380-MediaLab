@@ -1,0 +1,4 @@
+English: Hello, MediaLab!
+Arabic: مرحباً بكم في مختبر الوسائط المتعددة.
+Romanian: Bună ziua! Învățăm împreună.
+Symbols: café — 25°C — € — ✓

@@ -1,0 +1,237 @@
+{
+  "images/01_grayscale_ramp.png": {
+    "purpose": "Histogram binning, grayscale, threshold, posterization. Each of 256 levels occurs exactly 720 times.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 712,
+    "sha256": "2e60c8e9f9dea3540c5f7277f4bcebad644ae48588104c2c0cb3a44809bb975f",
+    "width": 768,
+    "height": 240,
+    "mode": "L"
+  },
+  "images/02_rgb_color_chart.png": {
+    "purpose": "RGB sliders, inversion, grayscale, eyedropper, sepia.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 17187,
+    "sha256": "a7963cc7e6cbfe7228ef6ad7c4935e4d0afc5dbc4702b55ad03bf7c0ea16b6a3",
+    "width": 800,
+    "height": 500,
+    "mode": "RGB"
+  },
+  "images/03_landscape_day.jpg": {
+    "purpose": "Casual demonstration: filters, brightness, contrast, blur, rotation and drawing.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 37980,
+    "sha256": "d87d6ebab6541e72174a2893d5ba831707f44ed780177fe3f218c42683958c81",
+    "width": 800,
+    "height": 500,
+    "mode": "RGB"
+  },
+  "images/04_landscape_night.png": {
+    "purpose": "Blend with 03_landscape_day.jpg; same dimensions (800×500).",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 11291,
+    "sha256": "a1aff5d0421f0d260969fdd798504c6ae66c1753660b9eb860adfbfeb4aadcda",
+    "width": 800,
+    "height": 500,
+    "mode": "RGB"
+  },
+  "images/05_low_contrast.png": {
+    "purpose": "Contrast, histogram stretching and equalization; intentionally narrow intensity distribution.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 9041,
+    "sha256": "bf4011eaa187c5ce7935b7e6e5f6738cbe7be7fb187e5f5ed3d75321cc84202a",
+    "width": 800,
+    "height": 500,
+    "mode": "RGB"
+  },
+  "images/06_dark_image.png": {
+    "purpose": "Brightness recovery and histogram shift.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 9266,
+    "sha256": "485c036dcffcead097ee84a2064ec28d37686e76f580c22ed747247a3784d10c",
+    "width": 800,
+    "height": 500,
+    "mode": "RGB"
+  },
+  "images/07_asymmetric_shapes.png": {
+    "purpose": "Mirroring, arbitrary rotation, pencil, lines, shapes and coordinate mapping.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 7041,
+    "sha256": "0ee72ed040168182092205743c4a9d9842ef782134eba6ae1b85e4537ac8a3b3",
+    "width": 800,
+    "height": 500,
+    "mode": "RGB"
+  },
+  "images/08_transparent.png": {
+    "purpose": "Transparency handling, import/export and drawing on alpha images.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 6154,
+    "sha256": "d1260cb4cbabcfb05557033048a87de2dfef5f29f8ebc9b86daa140f77248f5a",
+    "width": 480,
+    "height": 320,
+    "mode": "RGBA"
+  },
+  "images/09_nasa_astronaut.jpg": {
+    "purpose": "Real-world photographic filter demonstration, RGB, blur, sepia and histogram.",
+    "source": "NASA / scikit-image example data; public domain per https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.astronaut ; original: https://flic.kr/p/r9qvLn ; NASA use guidance: https://www.nasa.gov/nasa-brand-center/images-and-media/",
+    "bytes": 89955,
+    "sha256": "79b9d861d077d4333ae27f632155f33a22f2f22c465b5365a99b95678f062a3c",
+    "width": 512,
+    "height": 512,
+    "mode": "RGB"
+  },
+  "images/10_nasa_hubble.jpg": {
+    "purpose": "Real-world dark photograph, brightness and contrast; rich fine details.",
+    "source": "NASA / HubbleSite via scikit-image; public domain per https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.hubble_deep_field ; NASA use guidance: https://www.nasa.gov/nasa-brand-center/images-and-media/",
+    "bytes": 370290,
+    "sha256": "2b9aa855ed4a227731706f3a041e1956c4366a7128a66dd392d3bdc2c5e1e461",
+    "width": 1000,
+    "height": 872,
+    "mode": "RGB"
+  },
+  "images/11_blank_canvas.png": {
+    "purpose": "Drawing tools and shape placement on a white background.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 2337,
+    "sha256": "1bfa5276f66097d84f0a9e103e5347a9739c138d487777eb66fbbd6c5c32bf1f",
+    "width": 800,
+    "height": 500,
+    "mode": "RGB"
+  },
+  "audio/01_spoken_demo.wav": {
+    "purpose": "Speech makes reverse, echo and volume changes immediately recognizable.",
+    "source": "Original script, rendered with generic eSpeak text-to-speech; no human voice recording.",
+    "bytes": 406790,
+    "sha256": "753e76be4fb5a0dc7438afbc88ec5a48c06efeb9931dd2896ad4bcd6720e16c4",
+    "channels": 1,
+    "sample_rate": 22050,
+    "duration_seconds": 9.223,
+    "sample_width_bits": 16
+  },
+  "audio/02_tone_440hz.wav": {
+    "purpose": "Volume, waveform, fades and frequency reference (440 Hz).",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 176444,
+    "sha256": "f1c02b569d3bc3244d2d87a6d1023d43f5a6bee12f64bc653da7e490073084d5",
+    "channels": 1,
+    "sample_rate": 22050,
+    "duration_seconds": 4.0,
+    "sample_width_bits": 16
+  },
+  "audio/03_echo_clicks.wav": {
+    "purpose": "Echo and silence; short isolated tones expose delays clearly.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 176444,
+    "sha256": "168e73996c6fb763a9c06fb5fc52fb58d712c4d406759cc1951ef4d38ae46906",
+    "channels": 1,
+    "sample_rate": 22050,
+    "duration_seconds": 4.0,
+    "sample_width_bits": 16
+  },
+  "audio/04_blend_A.wav": {
+    "purpose": "First input for blend/splice; mono, 4 seconds, matching B.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 176444,
+    "sha256": "030ce4cc12c817c8fb255dfec0b92637eb48427fca758956ba1b7f9d99960756",
+    "channels": 1,
+    "sample_rate": 22050,
+    "duration_seconds": 4.0,
+    "sample_width_bits": 16
+  },
+  "audio/05_blend_B.wav": {
+    "purpose": "Second input for blend/splice; mono, 4 seconds, matching A.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 176444,
+    "sha256": "8fb99845cb338e97ca3daa375c56fcd82d28bcab867d59fda252199c4bcf5a7f",
+    "channels": 1,
+    "sample_rate": 22050,
+    "duration_seconds": 4.0,
+    "sample_width_bits": 16
+  },
+  "audio/06_stereo_channels.wav": {
+    "purpose": "Stereo integrity: left tone first, right tone second; test frame-aware reverse.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 352844,
+    "sha256": "af5e2c447956f2db00fde185eaf3d64a5356b5e68997cc17c7f3d13c8385973a",
+    "channels": 2,
+    "sample_rate": 22050,
+    "duration_seconds": 4.0,
+    "sample_width_bits": 16
+  },
+  "audio/07_quiet_tone.wav": {
+    "purpose": "Volume boost and normalization tests.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 176444,
+    "sha256": "e605ea0bbaed4879f4cf893b7afb6808765fde0077901d6b5588aebbe6fdff19",
+    "channels": 1,
+    "sample_rate": 22050,
+    "duration_seconds": 4.0,
+    "sample_width_bits": 16
+  },
+  "video/01_moving_shapes.mp4": {
+    "purpose": "Frame processing, inversion, mirroring, grayscale and timing; silent.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 55727,
+    "sha256": "558fb5d193619ba1b1a3270b2127203c5570329e0370cb125295b08994d3e007",
+    "width": 640,
+    "height": 360,
+    "fps": "24/1",
+    "duration_seconds": 6.0,
+    "video_codec": "h264",
+    "audio": false
+  },
+  "video/02_landscape_pan.mp4": {
+    "purpose": "Natural-looking illustrated motion; posterization, blur, brightness and contrast; silent.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 90386,
+    "sha256": "0406a81e4bffd191f04e1b468e32e66635bd34a2a0b1c09fd1576a4439135ee0",
+    "width": 640,
+    "height": 360,
+    "fps": "24/1",
+    "duration_seconds": 6.0,
+    "video_codec": "h264",
+    "audio": false
+  },
+  "video/03_stereo_sync.mp4": {
+    "purpose": "Check original audio preservation and audio/video sync after effects.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 68383,
+    "sha256": "36965640d0b9c8eb64866602684e98112c3040c3a205cba12ebbad04be7a02b4",
+    "width": 640,
+    "height": 360,
+    "fps": "24/1",
+    "duration_seconds": 4.0,
+    "video_codec": "h264",
+    "audio": true
+  },
+  "text/01_messy_notes.txt": {
+    "purpose": "Whitespace cleanup, case conversion, find and replace.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 146,
+    "sha256": "252bf6a963477d32571d717cbc9e5d5505ccebe3bb62019e650ed59e2df4b3f0"
+  },
+  "text/02_short_article.txt": {
+    "purpose": "Text formatting, headings, paragraphs and HTML export.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 215,
+    "sha256": "700d84bd701f11a2803f6f13762014a7fb5a99cc6858ea8cf052f0aa4dad4e5c"
+  },
+  "text/03_unicode.txt": {
+    "purpose": "UTF-8, Unicode, Arabic and accented letters.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 190,
+    "sha256": "a15fa1d4ec852e54fbff975711757195bc51ee0d6ac88e82e357c61e74ec270b"
+  },
+  "text/04_html_escape_test.txt": {
+    "purpose": "Safe HTML generation; angle brackets must display as text.",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 96,
+    "sha256": "e88bf8674f264433501c2ceb7e40b4631949c0c696fbfa233728f48846f68b18"
+  },
+  "text/05_repeated_lines.txt": {
+    "purpose": "Sorting, duplicate removal and line operations (optional).",
+    "source": "Original procedural or synthetic sample created for this pack.",
+    "bytes": 38,
+    "sha256": "c7e1c059e5f55e270f9328098de834287c64c72038eab1c1e8f1d6a9f25ceec2"
+  }
+}

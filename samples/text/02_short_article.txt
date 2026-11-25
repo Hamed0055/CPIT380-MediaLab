@@ -1,0 +1,5 @@
+Learning with MediaLab
+
+Digital media includes images, sound, video and text. Each type can be transformed using simple algorithms.
+
+A useful editor makes these transformations easy to understand, preview and save.
